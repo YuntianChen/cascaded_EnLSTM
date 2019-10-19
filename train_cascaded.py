@@ -1,5 +1,6 @@
 import tqdm
 import logging
+import argparse
 
 import numpy as np
 import torch
@@ -17,6 +18,82 @@ from configuration import config
 import util
 from util import Record, save_var, get_file_list, list_to_csv, shrink, save_txt
 
+parser = argparse.ArgumentParse()
+parser.add_argument("-parameters", default=None, default='Dictionary that')
+
+def enn_opotimizer(model, input_, target, cascading=''):
+    net_enn = model
+    dstb_y = lamuda.Lamuda(target, NE, ERROR_PER)
+    train_losses = Record()
+    losses = Record()
+    lamuda_history = Record()
+    std_history = Record()
+    pred_history = Record()
+
+    initial_parameters = net_enn.initial_parameters
+    initial_pred = net_enn.output(input_)
+    train_losses.update(criterion(initial_pred.mean(0), target).tolist())
+    losses.update(criterion(initial_pred.mean(0), target).tolist())
+    std_history.update(dstb_y.std(initial_pred))
+    pred_history.update(initial_pred)
+    lamuda_history.update(dstb_y.lamuda(initial_pred))
+
+    for j in range(T):
+        torch.cuda.empty_cache()
+        params = net_enn.get_parameter()
+        dstb_y.update()
+        time_ = time.strftime('%Y%m%d_%H_%M_%S')
+        delta = enrml.EnRML(pred_history.get_latest(mean=False), params, initial_parameters,
+                            lamuda_history.get_latest(mean=False), dstb_y.dstb, ERROR_PER)
+        params_raw = net_enn.update_parameter(delta)
+        torch.cuda.empty_cache()
+        pred = net_enn.output(input_)
+        loss_new = criterion(pred.mean(0), target).tolist()
+        bigger = train_losses.check(loss_new)
+        record_while = 0
+        while bigger:
+            record_while += 1
+            lamuda_history.update(lamuda_history.get_latest(mean=False) * GAMMA)
+            if lamuda_history.get_latest(mean=False) > GAMMA ** 10:
+                lamuda_history.update(lamuda_history.data[0])
+                print('abandon current iteration')
+                net_enn.set_parameter(params)
+                loss_new = train_losses.get_latest()
+                dstb_y.update()
+                params_raw = params
+                break
+            dstb_y.update()
+            net_enn.set_parameter(params)
+            delta = enrml.EnRML(pred_history.get_latest(mean=False), params, initial_parameters,
+                                lamuda_history.get_latest(mean=False), dstb_y.dstb, ERROR_PER)
+            params_raw = net_enn.update_parameter(delta)
+            torch.cuda.empty_cache()
+            pred = net_enn.output(input_)
+            loss_new = criterion(pred.mean(0), target).tolist()
+            print('update losses, new loss:{}'.format(loss_new))
+            bigger = train_losses.check(loss_new)
+        train_losses.update(loss_new)
+        save_var(params_raw, '{}/{}_{}_params'.format(PATH, time_, cascading))
+        print("iteration:{} \t current train losses:{}".format(j, train_losses.get_latest(mean=True)))
+        save_txt('{}/loss_{}.txt'.format(PATH, cascading), time.strftime('%Y%m%d_%H_%M_%S')+','+str(train_losses.get_latest(mean=True))+',\n')
+        pred_history.update(pred)
+        std_history.update(dstb_y.std(pred))
+        if std_history.bigger():
+            lamuda_history.update(lamuda_history.get_latest(mean=False))
+        else:
+            lamuda_tmp = lamuda_history.get_latest(mean=False) / GAMMA
+            if lamuda_tmp < 0.005:
+                lamuda_tmp = 0.005
+            lamuda_history.update(lamuda_tmp)
+    return net_enn, train_losses.get_latest(mean=True), pred_history.get_latest(mean=False)
+
+
+
+def evaluate():
+    pass
+
+def draw_result():
+    pass
 
 
 
@@ -24,9 +101,11 @@ def train(model, optimizer, loss_fm, dataloader, params):
 
     summ = []
     loss_avg = util.RunningAverage()
-
+    # use tqdm for pregress bar
     with tqdm(total=len(dataloader)) as t:
-        for 
+        for i,  (in_feature, target) in enumerate(dataloader):
+            
+
 
 
 
@@ -362,3 +441,9 @@ if __name__ == '__main__':
     net_enn_train = enn.ENN(model, NE)
     test1(net_enn_train, feature_name=current_feature_name, draw_result=True)
     """
+
+
+
+
+
+if __name__ == '__main__':
