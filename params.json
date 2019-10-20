@@ -1,0 +1,10 @@
+{
+    "epoch": 5,
+    "cuda": 1,
+    "model_dir": "experiments/",
+    "ensemble_size": 100,
+    "random_seed": 666,
+    "device_id": 1,
+    "T": 1,
+    "GAMMA": 10
+}

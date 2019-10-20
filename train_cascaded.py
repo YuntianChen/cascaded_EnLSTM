@@ -13,13 +13,13 @@ import pickle
 import json
 from enn import enn, enrml, lamuda
 from net import netLSTM_withbn
-from data import TextDataset
+from data import WelllogDataset
 from configuration import config
 import util
 from util import Record, save_var, get_file_list, list_to_csv, shrink, save_txt
 
 parser = argparse.ArgumentParse()
-parser.add_argument("-parameters", default=None, default='Dictionary that')
+parser.add_argument("--model_dir", default=None, help='Dictionary that')
 
 def enn_opotimizer(model, input_, target, cascading=''):
     net_enn = model
@@ -42,7 +42,7 @@ def enn_opotimizer(model, input_, target, cascading=''):
         torch.cuda.empty_cache()
         params = net_enn.get_parameter()
         dstb_y.update()
-        time_ = time.strftime('%Y%m%d_%H_%M_%S')
+        # time_ = time.strftime('%Y%m%d_%H_%M_%S')
         delta = enrml.EnRML(pred_history.get_latest(mean=False), params, initial_parameters,
                             lamuda_history.get_latest(mean=False), dstb_y.dstb, ERROR_PER)
         params_raw = net_enn.update_parameter(delta)
@@ -56,7 +56,8 @@ def enn_opotimizer(model, input_, target, cascading=''):
             lamuda_history.update(lamuda_history.get_latest(mean=False) * GAMMA)
             if lamuda_history.get_latest(mean=False) > GAMMA ** 10:
                 lamuda_history.update(lamuda_history.data[0])
-                print('abandon current iteration')
+                # print('abandon current iteration')
+                logging.info("Abandon current batch")
                 net_enn.set_parameter(params)
                 loss_new = train_losses.get_latest()
                 dstb_y.update()
@@ -70,12 +71,12 @@ def enn_opotimizer(model, input_, target, cascading=''):
             torch.cuda.empty_cache()
             pred = net_enn.output(input_)
             loss_new = criterion(pred.mean(0), target).tolist()
-            print('update losses, new loss:{}'.format(loss_new))
+            # print('update losses, new loss:{}'.format(loss_new))
             bigger = train_losses.check(loss_new)
         train_losses.update(loss_new)
-        save_var(params_raw, '{}/{}_{}_params'.format(PATH, time_, cascading))
-        print("iteration:{} \t current train losses:{}".format(j, train_losses.get_latest(mean=True)))
-        save_txt('{}/loss_{}.txt'.format(PATH, cascading), time.strftime('%Y%m%d_%H_%M_%S')+','+str(train_losses.get_latest(mean=True))+',\n')
+        # save_var(params_raw, '{}/{}_{}_params'.format(PATH, time_, cascading))
+        # print("iteration:{} \t current train losses:{}".format(j, train_losses.get_latest(mean=True)))
+        # save_txt('{}/loss_{}.txt'.format(PATH, cascading), time.strftime('%Y%m%d_%H_%M_%S')+','+str(train_losses.get_latest(mean=True))+',\n')
         pred_history.update(pred)
         std_history.update(dstb_y.std(pred))
         if std_history.bigger():
@@ -89,21 +90,72 @@ def enn_opotimizer(model, input_, target, cascading=''):
 
 
 
-def evaluate():
-    pass
+def evaluate(model, optimizer, loss_fn, dataloader, params, name):
+    
 
 def draw_result():
     pass
 
 
 
-def train(model, optimizer, loss_fm, dataloader, params):
-
-    summ = []
+def train(model, optimizer, loss_fm, dataloader, params, name):
+    # runing average object for loss
     loss_avg = util.RunningAverage()
     # use tqdm for pregress bar
     with tqdm(total=len(dataloader)) as t:
         for i,  (in_feature, target) in enumerate(dataloader):
+            # convert to troch Variables
+            in_feature, target = map(Variable, (in_feature, target))
+            # move to GPU if avaiable
+            if params.cuda:
+                in_feature = in_feature.cuda()
+                target = target.cuda()
+
+            # compute the model output and loss
+            model, loss, pred = optimizer(model, in_feature, target, cascading=name)
+
+            # update the average loss
+            loss_avg.update(np.average(loss))
+
+            t.set_postfix(loss='{:05.3f} avg: {:05.3f}'.format(np.average(loss), loss_avg()))
+            t.update()
+    logging.info('- Train')
+
+
+def train_and_evaluate(model, train_dataloader, val_dataloader, 
+                  optimizer, loss_fn, params, model_dir, restore_file=None):
+    """
+    Train the model and evaluate every epoch,
+
+    Args:
+        model: (torch.nn.Module) the neural network
+        train_dataloader: (DataLoader) a torch.utils.data.DataLoader object that fetches traing data
+        val_dataloader: (DataLoader)  a torch.utils.data.DataLoader object that fetches validation data
+        optimizer: (torch.optim) optimizer for parameters of model
+        loss_fn: a function that takes batch_output and batch_labels and computes the loss for the batch 
+        params: (Params) hyperparameters
+        model_dir: (string) directory containing config, weights and log
+        restore_file: (string) optional - name of file to resotre from (without its extension .pth.tar)
+    """
+    # reload weights from restore_file if aspecified
+    if restore_file is not None:
+        restore_path = os.path.join(args.model_dir, args.restore_file + '.pth.tar')
+        logging.info("Restoring parameters from {}".format(restore_path))
+        util.load_checkpoint(restore_path, model, optimizer)
+
+    best_val_acc = 0.0
+    for epoch in range(params.num_epochs):
+        # Run one epoch
+        logging.info("Epoch {}/{}".format(epoch+1, params.num_epochs))
+
+        train(model, optimizer, loss_fn, train_dataloader, params, name=None)
+
+        # evaluate(model, loss_fn, val_dataloader, name)
+
+
+
+
+
             
 
 
@@ -445,5 +497,42 @@ if __name__ == '__main__':
 
 
 
-
 if __name__ == '__main__':
+    
+    # Load the parameters from json file
+    args = parser.parse_args()
+    json_path = os.path.join(args.model_dir, 'params.json')
+    assert os.path.isfile(json_path), "No json configuration file found at {}".format(json_path)
+    params = util.Params(json_path)
+
+    # use GPU if available 
+    params.cuda = torch.cuda.is_avaiable()
+
+    # set the random seed for reproducible experiments
+    torch.manual_seed(666)
+    if params.cuda: torch.cuda.manual_seed(666)
+
+    # set the logger
+    util.set_logger(os.path.join(args.model_dir, 'train.log'))
+
+    # create the input data
+    logging.info("Loading the datasets...")
+
+    # fetch dataloaders
+    dataset = WelllogDataset()
+    train_dl = DataLoader(dataset, batch_size=params.batch_size, shuffle=True,
+                          num_workers=4, drop_last=params.drop_last)
+    val_dl = [dataset.test_dataset(i) for i in params.test]
+
+    logging.info("- done.")
+
+    # define the model and optimizer
+    model = enn.ENN(netLSTM_withbn(), params.ensemble_size)
+    optimizer = enn_optimizer
+
+    # fetch the loss function
+    loss_fn = torch.nn.MSELoss()
+
+    # train the model
+    logging.info("Starting training for {} epoch(s)".format(params.num_epochs))
+    train_and_evaluate(model, train_dl, val_dl, optimizer, loss_fn, params, args.model_dir, args.restore_file))
