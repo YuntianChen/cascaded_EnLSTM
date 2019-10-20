@@ -2,7 +2,6 @@ import numpy as np
 import torch.utils.data
 import pandas as pd
 from sklearn import preprocessing
-import copy
 import torch
 
 WELL = 6
