@@ -18,6 +18,12 @@ from configuration import config
 import util
 from util import Record, save_var, get_file_list, list_to_csv, shrink, save_txt
 
+"""
+Cascading: use a list of (input_dim, output_dim) to define the cascading scheam
+    e.g.
+        [(2, 1), (3, 1)]
+"""
+
 parser = argparse.ArgumentParse()
 parser.add_argument("--model_dir", default=None, help='Dictionary that')
 
