@@ -1,23 +1,24 @@
 import tqdm
 import logging
 import argparse
+import time
+import os
 
 import numpy as np
 import torch
-from torch.autograd import Variable
-from torch.utils.data import DataLoader
-import time
-import os
-import matplotlib.pyplot as plt
 import pickle
 import json
+
+from torch.autograd import Variable
+from torch.utils.data import DataLoader
+from collections import OrderedDict
+
+import util
 from enn import enn, enrml, lamuda
 from net import netLSTM_withbn
 from data import WelllogDataset, TEST_ID, COLUMNS_TARGET
 from configuration import config
-import util
 from util import Record, save_var, get_file_list, list_to_csv, shrink, save_txt
-from collections import OrderedDict
 from plotting import draw_comparing_diagram
 
 """
@@ -35,10 +36,10 @@ parser.add_argument("--resotre_file", default=None,
 
 CASCADING = OrderedDict()
 CASCADING_MODEL = OrderedDict()
-
 CASCADING['model_1'] = (5, 1)
 CASCADING['model_2'] = (6, 1)
 CASCADING['model_3'] = (7, 1)
+
 
 def enn_optimizer(model, input_, target, loss_fn, params, cascading=''):
     net_enn = model
@@ -108,7 +109,6 @@ def enn_optimizer(model, input_, target, loss_fn, params, cascading=''):
     return net_enn, params_raw, train_losses.get_latest(mean=True), pred_history.get_latest(mean=False)
 
 
-
 def evaluate(cascaded_model, loss_fn, evaluate_dataset, drawing_result=False):
     
     # define evaluate dataset
@@ -145,21 +145,25 @@ def evaluate(cascaded_model, loss_fn, evaluate_dataset, drawing_result=False):
                                         target)))
 
 
-def train(model, optimizer, loss_fm, dataloader, params, name):
+def train(model, optimizer, loss_fn, dataloader, params, name):
+    
     # runing average object for loss
     loss_avg = util.RunningAverage()
+    
     # use tqdm for pregress bar
     with tqdm(total=len(dataloader)) as t:
         for i,  (in_feature, target) in enumerate(dataloader):
+            
             # convert to troch Variables
             in_feature, target = map(Variable, (in_feature, target))
+            
             # move to GPU if avriable
             if params.cuda:
                 in_feature = in_feature.cuda()
                 target = target.cuda()
 
             # compute the model output and loss
-            model, weights, loss, pred = optimizer(model, in_feature, target, cascading=name)
+            model, weights, loss, pred = optimizer(model, in_feature, target, loss_fn, params, cascading=name)
 
             # save model weights
             torch.save(weights, 'weights')
@@ -169,6 +173,7 @@ def train(model, optimizer, loss_fm, dataloader, params, name):
 
             t.set_postfix(loss='{:05.3f} avg: {:05.3f}'.format(np.average(loss), loss_avg()))
             t.update()
+    
     return model
 
 
@@ -186,10 +191,13 @@ def train_and_evaluate(dataset, optimizer, loss_fn, params):
     """
     logging.info("Starting training for {} epoch(s)".format(params.num_epochs))
     for epoch in range(params.num_epochs): 
+        
         # Run one epoch
-        logging.info("Epoch {}/{}".format(epoch+1, params.num_epochs))       
+        logging.info("Epoch {}/{}".format(epoch+1, params.num_epochs))  
+             
         # Cascading
         for i, model_name in enumerate(CASCADING):
+            
             # reading model input and output dimension
             input_dim, output_dim = CASCADING[model_name]
             params.input_dim, params.output_dim = input_dim, output_dim
