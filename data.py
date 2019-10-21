@@ -4,11 +4,17 @@ import pandas as pd
 from sklearn import preprocessing
 import torch
 
+# NOTE:
+#   Record TRAIN_ID and TEST_ID if you change them
+
 WELL = 6
 HEAD = ['DEPT', 'RMG', 'RMN', 'RMN-RMG', 'CAL', 'SP', 'GR', 'HAC', 'BHC', 'DEN']
 COLUMNS = ['DEPT', 'RMN-RMG', 'CAL', 'SP', 'GR', 'HAC', 'BHC', 'DEN']
+COLUMNS_TARGET = ['HAC', 'BHC', 'DEN']
 TRAIN_ID = [1, 2, 3, 4, 5]
 TEST_ID = [6, ]
+
+TRAIN_LEN = 130
 
 file_prefix = 'data/vertical_all_A{}.csv'
 
@@ -33,13 +39,12 @@ def normalize(x):
 
 
 class WelllogDataset(torch.utils.data.Dataset):
-    scaler = None # the output scaler
+    # scaler = None # the output scaler
     dataset_scaler = {} # save all scaler
 
-    def __init__(self, input_dim, output_dim, train_len):  # 默认excel中前5口井训练，第6口检测
+    def __init__(self, input_dim, output_dim):  # 默认excel中前5口井训练，第6口检测
         self.input_dim = input_dim
         self.output_dim = output_dim
-        self.train_len = train_len
         self.data_all = [] # save all the well log data
         # add all well log data
         for i in range(WELL):
@@ -53,11 +58,12 @@ class WelllogDataset(torch.utils.data.Dataset):
         # save scaler
         for feature in COLUMNS:
             self.dataset_scaler[feature] = preprocessing.StandardScaler().fit(self.dataset[feature].values.reshape(-1, 1))
+        self.target_scaler = preprocessing.StandardScaler().fit(self.dataset[COLUMNS_TARGET].values)
         # get train dataset
         self.input_data, self.target_data = self.train_dataset()
         self.line_num = len(self.input_data)
     # reset train dataset
-    def reset_train_dataset(self, input_dim, output_dim):
+    def reset_dataset(self, input_dim, output_dim):
         self.input_dim, self.output_dim = input_dim, output_dim
         self.input_data, self.target_data = self.train_dataset()
         self.line_num = len(self.input_data)
@@ -68,31 +74,34 @@ class WelllogDataset(torch.utils.data.Dataset):
         for items in TRAIN_ID:
             data = self.data_all[items-1]
             input_ = np.array(list(make_dataset(
-                normalize(data[COLUMNS[:self.input_dim]].values)[0], self.train_len)))
+                normalize(data[COLUMNS[:self.input_dim]].values)[0], TRAIN_LEN)))
             target_ = []
             for feature in COLUMNS[self.input_dim:self.input_dim+self.output_dim]:
                 target_.append(self.scaler[feature].transform(data[feature].values.reshape(-1, 1)))
             target_ = np.concatenate(target_, axis=1)
+            target_ = np.array(list(make_dataset(target_, TRAIN_LEN)))
             input_data.append(input_)
             target_data.append(target_)
         # concat all data
-        return np.concatenate(input_data), np.concatenate(target_data)
+        return torch.from_numpy(np.concatenate(input_data)), torch.from_numpy(np.concatenate(target_data))
 
     def test_dataset(self, index):
         data = self.data_all[index-1]
         # input data
         input_ = normalize(data[COLUMNS[:self.input_dim]].values)[0]
         # target data
-        target_ = []
-        for feature in COLUMNS[self.input_dim:self.input_dim+self.output_dim]:
-            target_.append(self.dataset_scaler[feature].trainform(data[feature].values.reshape(-1, 1)))
-        target_ = np.concatenate(target_, axis=1)
+        # target_ = []
+        # for feature in COLUMNS[self.input_dim:self.input_dim+self.output_dim]:
+        #     target_.append(self.dataset_scaler[feature].transform(data[feature].values.reshape(-1, 1)))
+        # target_ = np.concatenate(target_, axis=1)
         # save target scaler for inversing
-        self.scaler = preprocessing.StandardScaler().fit(self.dataset[COLUMNS[self.input_dim:self.input_dim+self.output_dim]].values)
+        # self.scaler = preprocessing.StandardScaler().fit(self.dataset[COLUMNS[self.input_dim:self.input_dim+self.output_dim]].values)
+        target_ = self.target_scaler.transform(data[COLUMNS_TARGET].values)
         return input_, target_
 
     def inverse_normalize(self, x):
-        return self.scaler.inverse_transform(x)
+        # this feature is only used for inverse normalization of target
+        return self.target_scaler.inverse_transform(x)
 
     def __getitem__(self, index):
         return torch.from_numpy(self.input_data[index]), torch.from_numpy(self.target_data[index])
