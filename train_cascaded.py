@@ -18,11 +18,15 @@ from configuration import config
 import util
 from util import Record, save_var, get_file_list, list_to_csv, shrink, save_txt
 from collections import OrderedDict
-from plotting import draw_compa
+from plotting import draw_comparing_diagram
+
 """
-Cascading: use a list of (input_dim, output_dim) to define the cascading scheam
+Cascading: use an OrderedDict of (input_dim, output_dim) to define the cascading scheam
     e.g.
-        [(2, 1), (3, 1)]
+        {
+            'model_1': (2, 1),
+            'model_2': (3, 1)
+        }
 """
 
 parser = argparse.ArgumentParse()
@@ -36,9 +40,9 @@ CASCADING['model_1'] = (5, 1)
 CASCADING['model_2'] = (6, 1)
 CASCADING['model_3'] = (7, 1)
 
-def enn_optimizer(model, input_, target, cascading=''):
+def enn_optimizer(model, input_, target, loss_fn, params, cascading=''):
     net_enn = model
-    dstb_y = lamuda.Lamuda(target, NE, ERROR_PER)
+    dstb_y = lamuda.Lamuda(target, params.ensemble_size, params.ERROR_PER)
     train_losses = Record()
     losses = Record()
     lamuda_history = Record()
@@ -47,29 +51,29 @@ def enn_optimizer(model, input_, target, cascading=''):
 
     initial_parameters = net_enn.initial_parameters
     initial_pred = net_enn.output(input_)
-    train_losses.update(criterion(initial_pred.mean(0), target).tolist())
-    losses.update(criterion(initial_pred.mean(0), target).tolist())
+    train_losses.update(loss_fn(initial_pred.mean(0), target).tolist())
+    losses.update(loss_fn(initial_pred.mean(0), target).tolist())
     std_history.update(dstb_y.std(initial_pred))
     pred_history.update(initial_pred)
     lamuda_history.update(dstb_y.lamuda(initial_pred))
 
-    for j in range(T):
+    for j in range(params.T):
         torch.cuda.empty_cache()
         params = net_enn.get_parameter()
         dstb_y.update()
         # time_ = time.strftime('%Y%m%d_%H_%M_%S')
         delta = enrml.EnRML(pred_history.get_latest(mean=False), params, initial_parameters,
-                            lamuda_history.get_latest(mean=False), dstb_y.dstb, ERROR_PER)
+                            lamuda_history.get_latest(mean=False), dstb_y.dstb, params.ERROR_PER)
         params_raw = net_enn.update_parameter(delta)
         torch.cuda.empty_cache()
         pred = net_enn.output(input_)
-        loss_new = criterion(pred.mean(0), target).tolist()
+        loss_new = loss_fn(pred.mean(0), target).tolist()
         bigger = train_losses.check(loss_new)
         record_while = 0
         while bigger:
             record_while += 1
-            lamuda_history.update(lamuda_history.get_latest(mean=False) * GAMMA)
-            if lamuda_history.get_latest(mean=False) > GAMMA ** 10:
+            lamuda_history.update(lamuda_history.get_latest(mean=False) * params.GAMMA)
+            if lamuda_history.get_latest(mean=False) > params.GAMMA ** 10:
                 lamuda_history.update(lamuda_history.data[0])
                 # print('abandon current iteration')
                 logging.info("Abandon current batch")
@@ -81,11 +85,11 @@ def enn_optimizer(model, input_, target, cascading=''):
             dstb_y.update()
             net_enn.set_parameter(params)
             delta = enrml.EnRML(pred_history.get_latest(mean=False), params, initial_parameters,
-                                lamuda_history.get_latest(mean=False), dstb_y.dstb, ERROR_PER)
+                                lamuda_history.get_latest(mean=False), dstb_y.dstb, params.ERROR_PER)
             params_raw = net_enn.update_parameter(delta)
             torch.cuda.empty_cache()
             pred = net_enn.output(input_)
-            loss_new = criterion(pred.mean(0), target).tolist()
+            loss_new = params.criterion(pred.mean(0), target).tolist()
             # print('update losses, new loss:{}'.format(loss_new))
             bigger = train_losses.check(loss_new)
         train_losses.update(loss_new)
@@ -97,7 +101,7 @@ def enn_optimizer(model, input_, target, cascading=''):
         if std_history.bigger():
             lamuda_history.update(lamuda_history.get_latest(mean=False))
         else:
-            lamuda_tmp = lamuda_history.get_latest(mean=False) / GAMMA
+            lamuda_tmp = lamuda_history.get_latest(mean=False) / params.GAMMA
             if lamuda_tmp < 0.005:
                 lamuda_tmp = 0.005
             lamuda_history.update(lamuda_tmp)
@@ -105,7 +109,7 @@ def enn_optimizer(model, input_, target, cascading=''):
 
 
 
-def evaluate(cascaded_model, loss_fn, evaluate_dataset):
+def evaluate(cascaded_model, loss_fn, evaluate_dataset, drawing_result=False):
     
     # define evaluate dataset
     val_dl = [evaluate_dataset.test_dataset(i) for i in TEST_ID]
@@ -122,19 +126,23 @@ def evaluate(cascaded_model, loss_fn, evaluate_dataset):
         # cascading
         cascaded_pred = []
         for model_name in cascaded_model:
-            model = cascaded_model[model_name]      
+            model = cascaded_model[model_name]
+                 
             # make prediction
             pred = model.output(input_)
             input_ = np.concatenate([input_, pred.mean(0)], axis=1)
             cascaded_pred.append(pred)
+            
         # calculate loss
         cascaded_pred = np.concatenate(cascaded_pred, axis=1)
         loss = loss_fn(cascaded_pred.mean(0), target)
         
-        draw_comparing_diagram(*map(evaluate_dataset.inverser_normalize,
-                                    (cascaded_pred.mean(0),
-                                     cascaded_pred.std(0),
-                                     target)))
+        # plot the pred and target
+        if drawing_result:
+            draw_comparing_diagram(*map(evaluate_dataset.inverser_normalize,
+                                        (cascaded_pred.mean(0),
+                                        cascaded_pred.std(0),
+                                        target)))
 
 
 def train(model, optimizer, loss_fm, dataloader, params, name):
@@ -155,16 +163,16 @@ def train(model, optimizer, loss_fm, dataloader, params, name):
 
             # save model weights
             torch.save(weights, 'weights')
+            
             # update the average loss
             loss_avg.update(np.average(loss))
 
             t.set_postfix(loss='{:05.3f} avg: {:05.3f}'.format(np.average(loss), loss_avg()))
             t.update()
     return model
-    # logging.info('- Train ')
 
 
-def train_and_evaluate(dataset, optimizer, loss_fn, params, model_dir):
+def train_and_evaluate(dataset, optimizer, loss_fn, params):
     """
     Train the model and evaluate every epoch,
 
@@ -174,7 +182,6 @@ def train_and_evaluate(dataset, optimizer, loss_fn, params, model_dir):
         optimizer: (torch.optim) optimizer for parameters of model
         loss_fn: a function that takes batch_output and batch_labels and computes the loss for the batch 
         params: (Params) hyperparameters
-        model_dir: (string) directory containing config, weights and log
         restore_file: (string) optional - name of file to resotre from (without its extension .pth.tar)
     """
     logging.info("Starting training for {} epoch(s)".format(params.num_epochs))
@@ -204,8 +211,13 @@ def train_and_evaluate(dataset, optimizer, loss_fn, params, model_dir):
 
             # save model
             CASCADING_MODEL[model_name] = model
-
-
+        
+        # save checkpoint
+        torch.save(CASCADING_MODEL, os.path.join(params.model_dir, 'epoch_{}.pth.tar'.format(epoch)))
+        
+        # Evaluate
+        evaluate(CASCADING_MODEL, loss_fn, dataset, draw_comparing_diagram=bool(epoch == config.epoch-1))
+        
 
 if __name__ == '__main__':
     
