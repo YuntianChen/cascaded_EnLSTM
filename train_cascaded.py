@@ -18,6 +18,7 @@ from configuration import config
 import util
 from util import Record, save_var, get_file_list, list_to_csv, shrink, save_txt
 from collections import OrderedDict
+from plotting import draw_compa
 """
 Cascading: use a list of (input_dim, output_dim) to define the cascading scheam
     e.g.
@@ -163,19 +164,6 @@ def train(model, optimizer, loss_fm, dataloader, params, name):
     # logging.info('- Train ')
 
 
-def draw_comparing_diagram(pred, pred_std, target, title):
-    for feature in COLUMNS_TARGET:
-        x = np.arange(len(target))
-        plt.figure(figsize=(60, 50))
-        plt.plot(target, label='target', color='black', alpah=0.4)
-        plt.errorbar(x, pred[:, 0], yerr=pred_std[:, 0], color='red', alpha=0.7)
-        plt.tittle()
-        plt.legend()
-        y_label = feature
-        plt.tight_layout()
-        plt.savefig('{}.png')
-
-
 def train_and_evaluate(dataset, optimizer, loss_fn, params, model_dir):
     """
     Train the model and evaluate every epoch,
@@ -235,7 +223,7 @@ if __name__ == '__main__':
     if params.cuda: torch.cuda.manual_seed(666)
 
     # set the logger
-    util.set_logger(os.path.join(args.model_dir, 'train.log'))
+    util.set_logger(os.path.join(params.model_dir, 'train.log'))
 
     # create the input data
     logging.info("Loading the datasets...")
