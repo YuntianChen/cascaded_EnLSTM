@@ -53,6 +53,7 @@ class WelllogDataset(torch.utils.data.Dataset):
             df = read_file(filename)
             df['DEPT'] = np.arange(1, len(df)+1)
             self.data_all.append(df)
+            
         # combine all well log data
         self.dataset = pd.concat(self.data_all, axis=0, ignore_index=True)
         # save scaler
