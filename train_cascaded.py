@@ -1,4 +1,3 @@
-import tqdm
 import logging
 import argparse
 import time
@@ -12,6 +11,7 @@ import json
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from collections import OrderedDict
+from tqdm import tqdm
 
 import util
 from enn import enn, enrml, lamuda
@@ -30,7 +30,7 @@ Cascading: use an OrderedDict of (input_dim, output_dim) to define the cascading
         }
 """
 
-parser = argparse.ArgumentParse()
+parser = argparse.ArgumentParser()
 parser.add_argument("--resotre_file", default=None,
                     help='Optional, name fo the file to reload before training')
 
@@ -58,7 +58,7 @@ def enn_optimizer(model, input_, target, loss_fn, params, cascading=''):
     pred_history.update(initial_pred)
     lamuda_history.update(dstb_y.lamuda(initial_pred))
 
-    for j in range(params.T):
+    for _ in range(params.T):
         torch.cuda.empty_cache()
         params = net_enn.get_parameter()
         dstb_y.update()
@@ -111,11 +111,10 @@ def enn_optimizer(model, input_, target, loss_fn, params, cascading=''):
 
 def evaluate(cascaded_model, loss_fn, evaluate_dataset, drawing_result=False):
     
-    # define evaluate dataset
-    val_dl = [evaluate_dataset.test_dataset(i) for i in TEST_ID]
-
     # Evaluate for one well log validation set
     for i in TEST_ID:
+
+        # define evaluate dataset
         input_, target = evaluate_dataset.test_dataset(i) 
 
         # convert to torch variable
@@ -209,7 +208,7 @@ def train_and_evaluate(dataset, optimizer, loss_fn, params):
             # define train dataloader
             train_dl = DataLoader(dataset, batch_size=params.batch_size, shuffle=True,
                                 num_workers=4, drop_last=params.drop_last)
-            
+
             # define the model and optimizer
             net = netLSTM_withbn(params)
             model = enn.ENN(net, params.ensemble_size)
@@ -224,7 +223,7 @@ def train_and_evaluate(dataset, optimizer, loss_fn, params):
         torch.save(CASCADING_MODEL, os.path.join(params.model_dir, 'epoch_{}.pth.tar'.format(epoch)))
         
         # Evaluate
-        evaluate(CASCADING_MODEL, loss_fn, dataset, draw_comparing_diagram=bool(epoch == config.epoch-1))
+        evaluate(CASCADING_MODEL, loss_fn, dataset, drawing_result=bool(epoch == config.epoch-1))
         
 
 if __name__ == '__main__':
@@ -236,7 +235,7 @@ if __name__ == '__main__':
     params = util.Params(json_path)
 
     # use GPU if available 
-    params.cuda = torch.cuda.is_avaiable()
+    params.cuda = torch.cuda.is_availble()
 
     # set the random seed for reproducible experiments
     torch.manual_seed(666)
