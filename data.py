@@ -78,7 +78,7 @@ class WelllogDataset(torch.utils.data.Dataset):
                 normalize(data[COLUMNS[:self.input_dim]].values)[0], TRAIN_LEN)))
             target_ = []
             for feature in COLUMNS[self.input_dim:self.input_dim+self.output_dim]:
-                target_.append(self.scaler[feature].transform(data[feature].values.reshape(-1, 1)))
+                target_.append(self.dataset_scaler[feature].transform(data[feature].values.reshape(-1, 1)))
             target_ = np.concatenate(target_, axis=1)
             target_ = np.array(list(make_dataset(target_, TRAIN_LEN)))
             input_data.append(input_)

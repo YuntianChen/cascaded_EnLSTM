@@ -1,7 +1,7 @@
 {
     "epoch": 5,
     "cuda": 1,
-    "model_dir": "experiments/",
+    "model_dir": "Experiments/test",
     "ensemble_size": 100,
     "random_seed": 666,
     "device_id": 1,

@@ -235,11 +235,18 @@ if __name__ == '__main__':
     params = util.Params(json_path)
 
     # use GPU if available 
-    params.cuda = torch.cuda.is_availble()
+    params.cuda = torch.cuda.is_available()
 
     # set the random seed for reproducible experiments
     torch.manual_seed(666)
     if params.cuda: torch.cuda.manual_seed(666)
+
+    # create a new folder for training
+    if not os.path.exists(params.model_dir):
+        os.makedirs(params.model_dir)
+    
+    # write parameters in json file
+    params.save(os.path.join(params.model_dir, 'params.json'))
 
     # set the logger
     util.set_logger(os.path.join(params.model_dir, 'train.log'))
@@ -256,4 +263,7 @@ if __name__ == '__main__':
     
     # fetch the loss function
     loss_fn = torch.nn.MSELoss()
+
+    # Train the model
+    train_and_evaluate(dataset, optimizer, loss_fn, params)
     
