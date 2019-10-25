@@ -34,8 +34,11 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--resotre_file", default=None,
                     help='Optional, name fo the file to reload before training')
 
-CASCADING = OrderedDict()
+#Store model
 CASCADING_MODEL = OrderedDict()
+
+# Define model input and output dimension
+CASCADING = OrderedDict()
 CASCADING['model_1'] = (5, 1)
 CASCADING['model_2'] = (6, 1)
 CASCADING['model_3'] = (7, 1)
@@ -207,7 +210,7 @@ def train_and_evaluate(dataset, optimizer, loss_fn, params):
            
             # define train dataloader
             train_dl = DataLoader(dataset, batch_size=params.batch_size, shuffle=True,
-                                num_workers=4, drop_last=params.drop_last)
+                                num_workers=4, drop_last=True)
 
             # define the model and optimizer
             net = netLSTM_withbn(params)
@@ -266,4 +269,3 @@ if __name__ == '__main__':
 
     # Train the model
     train_and_evaluate(dataset, optimizer, loss_fn, params)
-    

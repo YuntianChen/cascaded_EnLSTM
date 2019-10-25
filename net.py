@@ -58,6 +58,7 @@ class netLSTM(nn.Module):
 class netLSTM_withbn(nn.Module):
     def __init__(self, config):
         super(netLSTM_withbn, self).__init__()
+        self.config = config
         self.lstm = nn.LSTM(self.config.input_dim, self.config.hid_dim,
                             self.config.num_layer, batch_first=True, dropout=self.config.drop_out)
         # 全连接至预测的测井曲线
