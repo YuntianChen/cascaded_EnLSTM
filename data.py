@@ -105,7 +105,7 @@ class WelllogDataset(torch.utils.data.Dataset):
         return self.target_scaler.inverse_transform(x)
 
     def __getitem__(self, index):
-        return torch.from_numpy(self.input_data[index]), torch.from_numpy(self.target_data[index])
+        return self.input_data[index], self.target_data[index]
     
     def __len__(self):
         return self.line_num

@@ -13,5 +13,6 @@
     "hid_dim": 10,
     "num_layer": 1,
     "drop_out": 0.3,
-    "batch_size": 16
+    "batch_size": 16,
+    "ERROR_PER": 0.003
 }
