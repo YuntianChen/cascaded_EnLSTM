@@ -15,7 +15,6 @@ class Lamuda: #calculate lamuda type:float
         with torch.no_grad():
             tmp = torch.stack([self.y]*self.NE).reshape(self.NE, -1).t()
             Cd_half = torch.eye(tmp.shape[0]).float().cuda() * self.error_per
-            print(Cd_half.dtype, tmp.dtype, )
             # 4 is the opposite number of the Coefficient of Variation.
             # error = torch.mm(Cd_half, torch.randn(tmp.shape).float().cuda())
             # dstb_y = tmp + error * tmp + 3 * error

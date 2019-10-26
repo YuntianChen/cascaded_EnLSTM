@@ -84,7 +84,7 @@ class WelllogDataset(torch.utils.data.Dataset):
             input_data.append(input_)
             target_data.append(target_)
         # concat all data
-        return torch.from_numpy(np.concatenate(input_data)), torch.from_numpy(np.concatenate(target_data))
+        return torch.from_numpy(np.concatenate(input_data)).float(), torch.from_numpy(np.concatenate(target_data)).float()
 
     def test_dataset(self, index):
         data = self.data_all[index-1]

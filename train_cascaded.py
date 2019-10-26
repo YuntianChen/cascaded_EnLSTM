@@ -63,10 +63,10 @@ def enn_optimizer(model, input_, target, loss_fn, params, cascading=''):
 
     for _ in range(params.T):
         torch.cuda.empty_cache()
-        params = net_enn.get_parameter()
+        parameters = net_enn.get_parameter()
         dstb_y.update()
         # time_ = time.strftime('%Y%m%d_%H_%M_%S')
-        delta = enrml.EnRML(pred_history.get_latest(mean=False), params, initial_parameters,
+        delta = enrml.EnRML(pred_history.get_latest(mean=False), parameters, initial_parameters,
                             lamuda_history.get_latest(mean=False), dstb_y.dstb, params.ERROR_PER)
         params_raw = net_enn.update_parameter(delta)
         torch.cuda.empty_cache()
@@ -81,19 +81,19 @@ def enn_optimizer(model, input_, target, loss_fn, params, cascading=''):
                 lamuda_history.update(lamuda_history.data[0])
                 # print('abandon current iteration')
                 logging.info("Abandon current batch")
-                net_enn.set_parameter(params)
+                net_enn.set_parameter(parameters)
                 loss_new = train_losses.get_latest()
                 dstb_y.update()
-                params_raw = params
+                params_raw = parameters
                 break
             dstb_y.update()
-            net_enn.set_parameter(params)
-            delta = enrml.EnRML(pred_history.get_latest(mean=False), params, initial_parameters,
+            net_enn.set_parameter(parameters)
+            delta = enrml.EnRML(pred_history.get_latest(mean=False), parameters, initial_parameters,
                                 lamuda_history.get_latest(mean=False), dstb_y.dstb, params.ERROR_PER)
             params_raw = net_enn.update_parameter(delta)
             torch.cuda.empty_cache()
             pred = net_enn.output(input_)
-            loss_new = params.criterion(pred.mean(0), target).tolist()
+            loss_new = loss_fn(pred.mean(0), target).tolist()
             # print('update losses, new loss:{}'.format(loss_new))
             bigger = train_losses.check(loss_new)
         train_losses.update(loss_new)
@@ -158,6 +158,9 @@ def train(model, optimizer, loss_fn, dataloader, params, name):
             
             # convert to troch Variables
             in_feature, target = map(Variable, (in_feature, target))
+
+            # flattern target
+            target = target.reshape(-1, params.output_dim)
             
             # move to GPU if avriable
             if params.cuda:
@@ -212,8 +215,14 @@ def train_and_evaluate(dataset, optimizer, loss_fn, params):
             train_dl = DataLoader(dataset, batch_size=params.batch_size, shuffle=True,
                                 num_workers=4, drop_last=True)
 
-            # define the model and optimizer
+            # define the model
             net = netLSTM_withbn(params)
+
+            # move model to CUDA
+            with torch.no_grad():
+                net = net.cuda()
+
+            # define ENN model
             model = enn.ENN(net, params.ensemble_size)
 
             # train the model
