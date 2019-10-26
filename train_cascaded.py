@@ -288,9 +288,9 @@ if __name__ == '__main__':
     # fetch the loss function
     loss_fn = torch.nn.MSELoss()
 
-    # Train the model
-    # train_and_evaluate(dataset, optimizer, loss_fn, params)
+    # Train the and evaluate the model
+    train_and_evaluate(dataset, optimizer, loss_fn, params)
 
-    # evaluate the model
-    CASCADING_MODEL = torch.load(os.path.join(params.model_dir, 'epoch_{}.pth.tar'.format(params.num_epochs-1)))
-    evaluate(CASCADING_MODEL, loss_fn, dataset, params, drawing_result=True)
+    # uncomment to evaluate the model
+    # CASCADING_MODEL = torch.load(os.path.join(params.model_dir, 'epoch_{}.pth.tar'.format(params.num_epochs-1)))
+    # evaluate(CASCADING_MODEL, loss_fn, dataset, params, drawing_result=True)
