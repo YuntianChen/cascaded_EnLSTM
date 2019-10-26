@@ -89,7 +89,7 @@ class WelllogDataset(torch.utils.data.Dataset):
     def test_dataset(self, index):
         data = self.data_all[index-1]
         # input data
-        input_ = normalize(data[COLUMNS[:self.input_dim]].values)[0]
+        input_ = normalize(data[COLUMNS[:-len(COLUMNS_TARGET)]].values)[0]
         # target data
         # target_ = []
         # for feature in COLUMNS[self.input_dim:self.input_dim+self.output_dim]:

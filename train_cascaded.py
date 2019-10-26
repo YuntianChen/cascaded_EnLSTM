@@ -17,7 +17,6 @@ import util
 from enn import enn, enrml, lamuda
 from net import netLSTM_withbn
 from data import WelllogDataset, TEST_ID, COLUMNS_TARGET
-from configuration import config
 from util import Record, save_var, get_file_list, list_to_csv, shrink, save_txt
 from plotting import draw_comparing_diagram
 
@@ -39,9 +38,9 @@ CASCADING_MODEL = OrderedDict()
 
 # Define model input and output dimension
 CASCADING = OrderedDict()
-CASCADING['model_1'] = (5, 1)
-CASCADING['model_2'] = (6, 1)
-CASCADING['model_3'] = (7, 1)
+CASCADING['model_1'] = (5, 2)
+CASCADING['model_2'] = (7, 1)
+# CASCADING['model_3'] = (7, 1)
 
 
 def enn_optimizer(model, input_, target, loss_fn, params, cascading=''):
@@ -146,10 +145,12 @@ def evaluate(cascaded_model, loss_fn, evaluate_dataset, params, drawing_result=F
         
         # plot the pred and target
         if drawing_result:
+            # inverse normalization
             cascaded_pred_mean, cascaded__pred_std, target = map(evaluate_dataset.inverse_normalize, 
                                                                  (cascaded_pred.mean(0),
-                                                                cascaded_pred.std(0),
-                                                                  target))
+                                                                 cascaded_pred.std(0),
+                                                                 target))
+            # plotting feature seperatly
             for i, feature in enumerate(COLUMNS_TARGET):
                 draw_comparing_diagram(cascaded_pred_mean[:, i],
                                        cascaded__pred_std[:, i],
@@ -247,7 +248,7 @@ def train_and_evaluate(dataset, optimizer, loss_fn, params):
         torch.save(CASCADING_MODEL, os.path.join(params.model_dir, 'epoch_{}.pth.tar'.format(epoch)))
         
         # Evaluate
-        evaluate(CASCADING_MODEL, loss_fn, dataset, params, drawing_result=bool(epoch == config.epoch-1))
+        evaluate(CASCADING_MODEL, loss_fn, dataset, params, drawing_result=bool(epoch == params.num_epochs-1))
         
 
 if __name__ == '__main__':
