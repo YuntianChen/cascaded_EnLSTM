@@ -14,8 +14,8 @@ class ENN:
         # self.param_size: the shape of parameters,e.g. layer1.weight:3x4,which is [3,4]
         # self.Nw: sum of parameters
         self.param_list, self.param_index, self.param_size, self.Nw = self.count_parameters(torch_model)
-        self.parameters = torch.zeros(self.Nw, self.Ne, requires_grad=False)
-        self.initial_parameters = torch.randn(self.Nw, self.Ne, requires_grad=False)  # initialize the parameters
+        self.parameters = torch.zeros(self.Nw, self.Ne, requires_grad=False, dtype=torch.float32)
+        self.initial_parameters = torch.randn(self.Nw, self.Ne, requires_grad=False, dtype=torch.float32)  # initialize the parameters
         self.update_parameter(self.initial_parameters)
         self.model = torch_model
 
