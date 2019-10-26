@@ -3,11 +3,11 @@ import numpy as np
 import os
 
 
-def draw_comparing_diagram(pred, pred_std, target, ylabel, title, save_path):
+def draw_comparing_diagram(pred, pred_std, target, ylabel=None, title=None, save_path=None):
     x = np.arange(len(target))
     plt.figure(figsize=(60, 50))
-    plt.plot(target, label='target', color='black', alpah=0.4)
-    plt.errorbar(x, pred[:, 0], yerr=pred_std[:, 0], color='red', alpha=0.7)
+    plt.plot(target, label='target', color='black', alpha=0.4)
+    plt.errorbar(x, pred, yerr=pred_std, color='red', alpha=0.7)
     plt.title('')
     plt.legend()
     plt.tight_layout()

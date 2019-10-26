@@ -216,7 +216,8 @@ def test(enn_net, feature_name='', draw_result=False):
             #plt.show()
 
 
-def test1(enn_net, feature_name='', draw_result=False):
+def test1(enn_net, feature            lamuda_tmp = lamuda_history.get_latest(mean=False) / GAMMA
+_name='', draw_result=False):
     # Get the latest parameters, and initialize the enn net
     param_list = get_file_list('{}_params'.format(feature_name), config.path)
     params = pickle.load(open(param_list[-1], 'rb'))

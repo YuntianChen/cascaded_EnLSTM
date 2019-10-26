@@ -112,7 +112,7 @@ def enn_optimizer(model, input_, target, loss_fn, params, cascading=''):
     return net_enn, params_raw, train_losses.get_latest(mean=True), pred_history.get_latest(mean=False)
 
 
-def evaluate(cascaded_model, loss_fn, evaluate_dataset, drawing_result=False):
+def evaluate(cascaded_model, loss_fn, evaluate_dataset, params, drawing_result=False):
     
     # Evaluate for one well log validation set
     for i in TEST_ID:
@@ -121,30 +121,42 @@ def evaluate(cascaded_model, loss_fn, evaluate_dataset, drawing_result=False):
         input_, target = evaluate_dataset.test_dataset(i) 
 
         # convert to torch variable
-        input_ = torch.from_numpy(input_)
-        target = torch.from_numpy(target)
+        input_ = torch.from_numpy(input_).float()
+        target = torch.from_numpy(target).float()
         input_, target = map(torch.autograd.Variable, (input_, target))
         
+        # move to GPU if avriable
+        if params.cuda:
+            input_ = input_.cuda()
+            target = target.cuda()
+
         # cascading
         cascaded_pred = []
         for model_name in cascaded_model:
             model = cascaded_model[model_name]
                  
             # make prediction
-            pred = model.output(input_)
-            input_ = np.concatenate([input_, pred.mean(0)], axis=1)
+            pred = model.output(input_.reshape(1, len(input_), -1))
+            input_ = torch.cat([input_, pred.mean(0)], 1)
             cascaded_pred.append(pred)
             
         # calculate loss
-        cascaded_pred = np.concatenate(cascaded_pred, axis=1)
+        cascaded_pred = torch.cat(cascaded_pred, 2)
         loss = loss_fn(cascaded_pred.mean(0), target)
         
         # plot the pred and target
         if drawing_result:
-            draw_comparing_diagram(*map(evaluate_dataset.inverser_normalize,
-                                        (cascaded_pred.mean(0),
-                                        cascaded_pred.std(0),
-                                        target)))
+            cascaded_pred_mean, cascaded__pred_std, target = map(evaluate_dataset.inverse_normalize, 
+                                                                 (cascaded_pred.mean(0),
+                                                                cascaded_pred.std(0),
+                                                                  target))
+            for i, feature in enumerate(COLUMNS_TARGET):
+                draw_comparing_diagram(cascaded_pred_mean[:, i],
+                                       cascaded__pred_std[:, i],
+                                       target[:, i],
+                                       ylabel=feature,
+                                       title=feature,
+                                       save_path=params.model_dir)
 
 
 def train(model, optimizer, loss_fn, dataloader, params, name):
@@ -235,7 +247,7 @@ def train_and_evaluate(dataset, optimizer, loss_fn, params):
         torch.save(CASCADING_MODEL, os.path.join(params.model_dir, 'epoch_{}.pth.tar'.format(epoch)))
         
         # Evaluate
-        evaluate(CASCADING_MODEL, loss_fn, dataset, drawing_result=bool(epoch == config.epoch-1))
+        evaluate(CASCADING_MODEL, loss_fn, dataset, params, drawing_result=bool(epoch == config.epoch-1))
         
 
 if __name__ == '__main__':
@@ -277,4 +289,8 @@ if __name__ == '__main__':
     loss_fn = torch.nn.MSELoss()
 
     # Train the model
-    train_and_evaluate(dataset, optimizer, loss_fn, params)
+    # train_and_evaluate(dataset, optimizer, loss_fn, params)
+
+    # evaluate the model
+    CASCADING_MODEL = torch.load(os.path.join(params.model_dir, 'epoch_{}.pth.tar'.format(params.num_epochs-1)))
+    evaluate(CASCADING_MODEL, loss_fn, dataset, params, drawing_result=True)
