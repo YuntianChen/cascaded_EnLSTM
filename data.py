@@ -6,13 +6,10 @@ import torch
 
 # NOTE:
 #   Record TRAIN_ID and TEST_ID if you change them
-
 WELL = 6
 HEAD = ['DEPT', 'RMG', 'RMN', 'RMN-RMG', 'CAL', 'SP', 'GR', 'HAC', 'BHC', 'DEN']
 COLUMNS = ['DEPT', 'RMN-RMG', 'CAL', 'SP', 'GR', 'HAC', 'BHC', 'DEN']
 COLUMNS_TARGET = ['HAC', 'BHC', 'DEN']
-TRAIN_ID = [1, 2, 3, 4, 5]
-TEST_ID = [6, ]
 
 TRAIN_LEN = 130
 
@@ -42,9 +39,10 @@ class WelllogDataset(torch.utils.data.Dataset):
     # scaler = None # the output scaler
     dataset_scaler = {} # save all scaler
 
-    def __init__(self, input_dim, output_dim):  # 默认excel中前5口井训练，第6口检测
+    def __init__(self, input_dim, output_dim, train_id):  # 默认excel中前5口井训练，第6口检测
         self.input_dim = input_dim
         self.output_dim = output_dim
+        self.train_id = train_id
         self.data_all = [] # save all the well log data
         # add all well log data
         for i in range(WELL):
@@ -72,7 +70,7 @@ class WelllogDataset(torch.utils.data.Dataset):
     def train_dataset(self):
         input_data = []
         target_data = []
-        for items in TRAIN_ID:
+        for items in self.train_id:
             data = self.data_all[items-1]
             input_ = np.array(list(make_dataset(
                 normalize(data[COLUMNS[:self.input_dim]].values)[0], TRAIN_LEN)))

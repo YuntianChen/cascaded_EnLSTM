@@ -16,7 +16,7 @@ from tqdm import tqdm
 import util
 from enn import enn, enrml, lamuda
 from net import netLSTM_withbn
-from data import WelllogDataset, TEST_ID, COLUMNS_TARGET
+from data import WelllogDataset, COLUMNS_TARGET, WELL
 from util import Record, save_var, get_file_list, list_to_csv, shrink, save_txt
 from plotting import draw_comparing_diagram
 
@@ -114,7 +114,7 @@ def enn_optimizer(model, input_, target, loss_fn, params, cascading=''):
 def evaluate(cascaded_model, loss_fn, evaluate_dataset, params, drawing_result=False):
     
     # Evaluate for one well log validation set
-    for i in TEST_ID:
+    for i in params.TEST_ID:
 
         # define evaluate dataset
         input_, target = evaluate_dataset.test_dataset(i) 
@@ -259,13 +259,16 @@ if __name__ == '__main__':
     assert os.path.isfile(json_path), "No json configuration file found at {}".format(json_path)
     params = util.Params(json_path)
 
+    # Defind experiment folder
+    params.model_dir = 'Experiments/{}'.format(params.experiments_id)
+
     # use GPU if available 
     params.cuda = torch.cuda.is_available()
 
     # set GPU
     if params.cuda:
-        torch.cuda.set_device(params.device_id)
-
+        device_id = int(params.experiments_id) % 2
+        torch.cuda.set_device(device_id)
 
     # set the random seed for reproducible experiments
     torch.manual_seed(666)
@@ -285,7 +288,8 @@ if __name__ == '__main__':
     logging.info("Loading the datasets...")
     
     # fetch dataloaders
-    dataset = WelllogDataset(*CASCADING['model_1'])
+    train_id = [i for i in range(1, WELL+1) if i not in params.TEST_ID]
+    dataset = WelllogDataset(*CASCADING['model_1'], train_id)
     logging.info("- done.")
     
     # define optimizer

@@ -1,18 +1,22 @@
 {
-    "num_epochs": 5,
-    "cuda": 1,
-    "model_dir": "Experiments/test",
-    "ensemble_size": 100,
     "random_seed": 666,
-    "device_id": 1,
-    "T": 1,
-    "GAMMA": 10,
-    "input_dim": 0,
-    "output_dim": 0,
+
     "train_len": 10,
     "hid_dim": 30,
     "num_layer": 1,
     "drop_out": 0.3,
     "batch_size": 64,
-    "ERROR_PER": 0.02
+    "ERROR_PER": 0.02,
+
+    "GAMMA": 10,
+    "T": 1,
+    "num_epochs": 5,
+    "ensemble_size": 100,
+
+    "cuda": 0,
+    "input_dim": 0,
+    "output_dim": 0,
+    "experiments_id":156,
+    "model_dir": "./",
+    "TEST_ID": [1]
 }
