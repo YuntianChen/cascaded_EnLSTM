@@ -42,6 +42,10 @@ CASCADING['model_1'] = (5, 2)
 CASCADING['model_2'] = (7, 1)
 # CASCADING['model_3'] = (7, 1)
 
+# Save losses
+losses_ = []
+test_losses_ = []
+
 
 def enn_optimizer(model, input_, target, loss_fn, params, cascading=''):
     net_enn = model
@@ -142,18 +146,18 @@ def evaluate(cascaded_model, loss_fn, evaluate_dataset, params, drawing_result=F
         # calculate loss
         cascaded_pred = torch.cat(cascaded_pred, 2)
         loss = loss_fn(cascaded_pred.mean(0), target)
+        test_losses_.append(loss)
         
         # plot the pred and target
         if drawing_result:
             # inverse normalization
-            cascaded_pred_mean, cascaded__pred_std, target = map(evaluate_dataset.inverse_normalize, 
-                                                                 (cascaded_pred.mean(0),
-                                                                 cascaded_pred.std(0),
-                                                                 target))
+            cascaded_pred_std = evaluate_dataset.inverse_normalize(cascaded_pred).std(0)
+            cascaded_pred_mean, target = map(evaluate_dataset.inverse_normalize, 
+                                             (cascaded_pred.mean(0), target))
             # plotting feature seperatly
             for i, feature in enumerate(COLUMNS_TARGET):
                 draw_comparing_diagram(cascaded_pred_mean[:, i],
-                                       cascaded__pred_std[:, i],
+                                       cascaded_pred_std[:, i],
                                        target[:, i],
                                        ylabel=feature,
                                        title=feature,
@@ -188,6 +192,7 @@ def train(model, optimizer, loss_fn, dataloader, params, name):
             
             # update the average loss
             loss_avg.update(np.average(loss))
+            losses_.append(np.average(loss))
 
             t.set_postfix(loss='{:05.3f} avg: {:05.3f}'.format(np.average(loss), loss_avg()))
             t.update()
@@ -236,7 +241,10 @@ def train_and_evaluate(dataset, optimizer, loss_fn, params):
                 net = net.cuda()
 
             # define ENN model
-            model = enn.ENN(net, params.ensemble_size)
+            if epoch == 0:
+                model = enn.ENN(net, params.ensemble_size)
+            else:
+                model = CASCADING_MODEL[model_name]
 
             # train the model
             model = train(model, optimizer, loss_fn, train_dl, params, name=model_name)
@@ -246,6 +254,8 @@ def train_and_evaluate(dataset, optimizer, loss_fn, params):
         
         # save checkpoint
         torch.save(CASCADING_MODEL, os.path.join(params.model_dir, 'epoch_{}.pth.tar'.format(epoch)))
+        util.save_list(os.path.join(params.model_dir, 'loss.csv'), losses_)
+        util.save_list(os.path.join(params.model_dir, 'test_loss.csv'), test_losses_)
         
         # Evaluate
         evaluate(CASCADING_MODEL, loss_fn, dataset, params, drawing_result=bool(epoch == params.num_epochs-1))
@@ -271,8 +281,8 @@ if __name__ == '__main__':
         torch.cuda.set_device(device_id)
 
     # set the random seed for reproducible experiments
-    torch.manual_seed(666)
-    if params.cuda: torch.cuda.manual_seed(666)
+    torch.manual_seed(params.random_seed)
+    if params.cuda: torch.cuda.manual_seed(params.random_seed)
 
     # create a new folder for training
     if not os.path.exists(params.model_dir):

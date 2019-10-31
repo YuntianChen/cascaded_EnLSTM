@@ -7,6 +7,12 @@ import torch
 import shutil
 
 
+def save_list(filename, li):
+    with open(filename, 'w') as f:
+        for data in li:
+            f.write(str(data) + ',\n')
+    f.close()
+    
 def save_txt(filename, data):
     with open(filename, 'a') as f:
         f.write(data)

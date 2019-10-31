@@ -1,4 +1,6 @@
 {
+    "experiments_id":158,
+    "TEST_ID": [1],
     "random_seed": 666,
 
     "train_len": 10,
@@ -8,15 +10,13 @@
     "batch_size": 64,
     "ERROR_PER": 0.02,
 
-    "GAMMA": 10,
-    "T": 1,
-    "num_epochs": 5,
+    "num_epochs": 1,
     "ensemble_size": 100,
+    "GAMMA": 10,
+    "T": 1,    
 
     "cuda": 0,
     "input_dim": 0,
     "output_dim": 0,
-    "experiments_id":156,
-    "model_dir": "./",
-    "TEST_ID": [1]
+    "model_dir": "./"  
 }
