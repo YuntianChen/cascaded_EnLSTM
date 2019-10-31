@@ -184,7 +184,7 @@ def train(model, optimizer, loss_fn, dataloader, params, name):
             model, weights, loss, pred = optimizer(model, in_feature, target, loss_fn, params, cascading=name)
 
             # save model weights
-            torch.save(weights, 'weights')
+            # torch.save(weights, os.path.join(params.model_dir, 'weights'))
             
             # update the average loss
             loss_avg.update(np.average(loss))
