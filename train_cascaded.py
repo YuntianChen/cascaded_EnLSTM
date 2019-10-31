@@ -262,6 +262,11 @@ if __name__ == '__main__':
     # use GPU if available 
     params.cuda = torch.cuda.is_available()
 
+    # set GPU
+    if params.cuda:
+        torch.cuda.set_device(params.device_id)
+
+
     # set the random seed for reproducible experiments
     torch.manual_seed(666)
     if params.cuda: torch.cuda.manual_seed(666)
