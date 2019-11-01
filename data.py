@@ -6,14 +6,20 @@ import torch
 
 # NOTE:
 #   Record TRAIN_ID and TEST_ID if you change them
-WELL = 6
-HEAD = ['DEPT', 'RMG', 'RMN', 'RMN-RMG', 'CAL', 'SP', 'GR', 'HAC', 'BHC', 'DEN']
-COLUMNS = ['DEPT', 'RMN-RMG', 'CAL', 'SP', 'GR', 'HAC', 'BHC', 'DEN']
-COLUMNS_TARGET = ['HAC', 'BHC', 'DEN']
+WELL = 14
+HEAD = ['DEPTH', 'BRITTLE_HORZ', 'BRITTLE_VERT', 'COHESION', 'DEN', 'DTC', 'E_HORZ', 'E_VERT', 'GGRM',
+        'GMPO', 'GMTH', 'GMUR', 'MSPD', 'NPRL', 'PF', 'PP', 'PR_HORZ', 'PR_VERT', 'R20F', 'R30F', 'R40F',
+        'R60F', 'R85F', 'SHDEF','SHMAX', 'SHMIN', 'ST', 'SV', 'TOC', 'UCS', 'VP', 'VPVS_X', 'VPVS_Y',
+        'VS_X', 'VS_Y']
+COLUMNS = ['DEPTH', 'GGRM', 'GMPO', 'GMTH', 'GMUR', 'MSPD',  'R20F', 'R85F', 'VP', 'VS_X', 'VS_Y',
+           'E_HORZ', 'E_VERT','COHESION', 'UCS','DEN', 'ST', 'BRITTLE_HORZ', 'BRITTLE_VERT', 'PR_HORZ', 'PR_VERT', 'NPRL', 'TOC']
 
-TRAIN_LEN = 130
 
-file_prefix = 'data/vertical_all_A{}.csv'
+COLUMNS_TARGET = ['E_HORZ', 'E_VERT','COHESION', 'UCS', 'DEN', 'ST', 'BRITTLE_HORZ', 'BRITTLE_VERT', 'PR_HORZ', 'PR_VERT', 'NPRL', 'TOC']
+
+TRAIN_LEN = 150
+
+file_prefix = 'e:/CYQ/zj_well-log-cascaded/data/A{}.csv'
 
 # read file and change the head name
 def read_file(path):
@@ -27,7 +33,7 @@ def make_dataset(data, window_size):
     i = 0
     while i + window_size - 1 < len(data):
         yield data[i:i+window_size]
-        i += 10 # set windows step here
+        i += 30 # set windows step here
 
 
 def normalize(x):

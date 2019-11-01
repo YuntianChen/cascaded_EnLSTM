@@ -38,8 +38,12 @@ CASCADING_MODEL = OrderedDict()
 
 # Define model input and output dimension
 CASCADING = OrderedDict()
-CASCADING['model_1'] = (5, 2)
-CASCADING['model_2'] = (7, 1)
+CASCADING['model_1'] = (11, 2)
+CASCADING['model_2'] = (13, 2)
+CASCADING['model_3'] = (15, 2)
+CASCADING['model_4'] = (17, 2)
+CASCADING['model_5'] = (19, 2)
+CASCADING['model_6'] = (21, 2)
 # CASCADING['model_3'] = (7, 1)
 
 # Save losses
@@ -265,7 +269,7 @@ if __name__ == '__main__':
     
     # Load the parameters from json file
     args = parser.parse_args()
-    json_path = 'params.json'
+    json_path = 'e:/CYQ/zj_well-log-cascaded/params.json'
     assert os.path.isfile(json_path), "No json configuration file found at {}".format(json_path)
     params = util.Params(json_path)
 
