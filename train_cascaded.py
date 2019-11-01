@@ -4,6 +4,7 @@ import time
 import os
 
 import numpy as np
+import pandas as pd
 import torch
 import pickle
 import json
@@ -47,7 +48,7 @@ CASCADING['model_6'] = (21, 2)
 # CASCADING['model_3'] = (7, 1)
 
 # Save losses
-losses_ = []
+losses_ = OrderedDict((model_name, []) for model_name in CASCADING)
 test_losses_ = []
 
 
@@ -151,9 +152,16 @@ def evaluate(cascaded_model, loss_fn, evaluate_dataset, params, drawing_result=F
         cascaded_pred = torch.cat(cascaded_pred, 2)
         loss = loss_fn(cascaded_pred.mean(0), target)
         test_losses_.append(loss)
-        
+                
         # plot the pred and target
         if drawing_result:
+            
+            # save prediction
+            np.savetxt('result/e{}_pred.csv'.format(params.experiment_id),
+                    np.array(cascaded_pred)[:, :, 0], delimiter=',')
+            np.savetxt('result/e{}_pred_unnormalized.csv'.format(params.experiment_id),
+                    np.array(evaluate_dataset.inverse_normalize(cascaded_pred))[:, :, 0], delimiter=',')
+        
             # inverse normalization
             cascaded_pred_std = evaluate_dataset.inverse_normalize(cascaded_pred).std(0)
             cascaded_pred_mean, target = map(evaluate_dataset.inverse_normalize, 
@@ -196,7 +204,7 @@ def train(model, optimizer, loss_fn, dataloader, params, name):
             
             # update the average loss
             loss_avg.update(np.average(loss))
-            losses_.append(np.average(loss))
+            losses_[name].append(np.average(loss))
 
             t.set_postfix(loss='{:05.3f} avg: {:05.3f}'.format(np.average(loss), loss_avg()))
             t.update()
@@ -258,8 +266,11 @@ def train_and_evaluate(dataset, optimizer, loss_fn, params):
         
         # save checkpoint
         torch.save(CASCADING_MODEL, os.path.join(params.model_dir, 'epoch_{}.pth.tar'.format(epoch)))
-        util.save_list(os.path.join(params.model_dir, 'loss.csv'), losses_)
-        util.save_list(os.path.join(params.model_dir, 'test_loss.csv'), test_losses_)
+        
+        # save losses
+        losses_ = pd.DataFrame.from_dict(losses_)
+        losses_.to_csv(os.path.join(params.model_dir, 'losses.csv'))
+        util.save_list(os.path.join(params.model_dir, 'evaluate_losses.csv'), test_losses_)
         
         # Evaluate
         evaluate(CASCADING_MODEL, loss_fn, dataset, params, drawing_result=bool(epoch == params.num_epochs-1))
