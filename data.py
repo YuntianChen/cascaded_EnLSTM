@@ -45,7 +45,7 @@ class WelllogDataset(torch.utils.data.Dataset):
     # scaler = None # the output scaler
     dataset_scaler = {} # save all scaler
 
-    def __init__(self, input_dim, output_dim, train_id):  # 默认excel中前5口井训练，第6口检测
+    def __init__(self, input_dim, output_dim, train_id):
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.train_id = train_id
