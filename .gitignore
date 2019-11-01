@@ -126,6 +126,7 @@ dmypy.json
 
 # Experiments
 Experiments/
+result/
 
 # VS CODE
 .vscode

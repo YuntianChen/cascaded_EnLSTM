@@ -3,14 +3,14 @@
     "TEST_ID": [1],
     "random_seed": 666666,
 
-    "hid_dim": 30,
+    "hid_dim": 10,
     "num_layer": 1,
     "drop_out": 0.3,
     "batch_size": 64,
     "ERROR_PER": 0.02,
 
-    "num_epochs": 3,
-    "ensemble_size": 100,
+    "num_epochs": 1,
+    "ensemble_size": 2,
     "GAMMA": 10,
     "T": 1,    
 
