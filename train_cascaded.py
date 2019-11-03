@@ -160,6 +160,8 @@ def evaluate(cascaded_model, loss_fn, evaluate_dataset, params, drawing_result=F
         if drawing_result:
             
             # save prediction and target
+            torch.save(cascaded_pred, os.path.join(params.model_dir, 'pred'))
+            torch.save(evaluate_dataset.inverse_normalize(cascaded_pred), os.path.join(params.model_dir, 'pred_unnormalized'))
             np.savetxt(os.path.join(params.model_dir, 'e{}_pred.csv'.format(params.experiments_id)),
                     np.array(cascaded_pred.mean(0)), delimiter=',')
             np.savetxt(os.path.join(params.model_dir, 'e{}_pred_unnormalized.csv'.format(params.experiments_id)),
