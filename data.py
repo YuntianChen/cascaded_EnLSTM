@@ -21,6 +21,8 @@ TRAIN_LEN = 150
 
 file_prefix = 'e:/CYQ/zj_well-log-cascaded/data/A{}.csv'
 
+INDIVIDUAL_NORMALIZATION = True
+
 # read file and change the head name
 def read_file(path):
     df = pd.read_csv(path)
@@ -80,11 +82,15 @@ class WelllogDataset(torch.utils.data.Dataset):
             data = self.data_all[items-1]
             input_ = np.array(list(make_dataset(
                 normalize(data[COLUMNS[:self.input_dim]].values)[0], TRAIN_LEN)))
-            target_ = []
-            for feature in COLUMNS[self.input_dim:self.input_dim+self.output_dim]:
-                target_.append(self.dataset_scaler[feature].transform(data[feature].values.reshape(-1, 1)))
-            target_ = np.concatenate(target_, axis=1)
-            target_ = np.array(list(make_dataset(target_, TRAIN_LEN)))
+            if INDIVIDUAL_NORMALIZATION:
+                target_ = np.array(list(make_dataset(
+                    normalize(data[COLUMNS[self.input_dim:self.input_dim+self.output_dim]].values)[0], TRAIN_LEN)))
+            else:
+                target_ = []
+                for feature in COLUMNS[self.input_dim:self.input_dim+self.output_dim]:
+                    target_.append(self.dataset_scaler[feature].transform(data[feature].values.reshape(-1, 1)))
+                target_ = np.concatenate(target_, axis=1)
+                target_ = np.array(list(make_dataset(target_, TRAIN_LEN)))
             input_data.append(input_)
             target_data.append(target_)
         # concat all data
@@ -94,14 +100,10 @@ class WelllogDataset(torch.utils.data.Dataset):
         data = self.data_all[index-1]
         # input data
         input_ = normalize(data[COLUMNS[:-len(COLUMNS_TARGET)]].values)[0]
-        # target data
-        # target_ = []
-        # for feature in COLUMNS[self.input_dim:self.input_dim+self.output_dim]:
-        #     target_.append(self.dataset_scaler[feature].transform(data[feature].values.reshape(-1, 1)))
-        # target_ = np.concatenate(target_, axis=1)
-        # save target scaler for inversing
-        # self.scaler = preprocessing.StandardScaler().fit(self.dataset[COLUMNS[self.input_dim:self.input_dim+self.output_dim]].values)
-        target_ = self.target_scaler.transform(data[COLUMNS_TARGET].values)
+        if INDIVIDUAL_NORMALIZATION:
+            target_, self.target_scaler = normalize(data[COLUMNS_TARGET].values)
+        else:
+            target_ = self.target_scaler.transform(data[COLUMNS_TARGET].values)
         return input_, target_
 
     def inverse_normalize(self, x):

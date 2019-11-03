@@ -31,6 +31,8 @@ Cascading: use an OrderedDict of (input_dim, output_dim) to define the cascading
 """
 
 parser = argparse.ArgumentParser()
+parser.add_argument("--evaluate", default=False,
+                    help='Set True to evaluate')
 parser.add_argument("--resotre_file", default=None,
                     help='Optional, name fo the file to reload before training')
 
@@ -49,7 +51,7 @@ CASCADING['model_6'] = (21, 2)
 
 # Save losses
 LOSSES = OrderedDict((model_name, []) for model_name in CASCADING)
-TEST_LOSSES = []
+TEST_LOSSES = OrderedDict((feature, []) for feature in COLUMNS_TARGET)
 
 
 def enn_optimizer(model, input_, target, loss_fn, params, cascading=''):
@@ -148,20 +150,25 @@ def evaluate(cascaded_model, loss_fn, evaluate_dataset, params, drawing_result=F
             input_ = torch.cat([input_, pred.mean(0)], 1)
             cascaded_pred.append(pred)
             
-        # calculate loss
+        # calculate loss seperately
         cascaded_pred = torch.cat(cascaded_pred, 2)
-        loss = loss_fn(cascaded_pred.mean(0), target)
-        TEST_LOSSES.append(loss.item)
+        for i, feature in enumerate(COLUMNS_TARGET):
+            loss = loss_fn(cascaded_pred.mean(0)[:, i], target[:, i])
+            TEST_LOSSES[feature].append(loss.item())
                 
         # plot the pred and target
         if drawing_result:
             
-            # save prediction
-            np.savetxt('result/e{}_pred.csv'.format(params.experiments_id),
-                    np.array(cascaded_pred)[:, :, 0], delimiter=',')
-            np.savetxt('result/e{}_pred_unnormalized.csv'.format(params.experiments_id),
-                    np.array(evaluate_dataset.inverse_normalize(cascaded_pred))[:, :, 0], delimiter=',')
-        
+            # save prediction and target
+            np.savetxt(os.path.join(params.model_dir, 'e{}_pred.csv'.format(params.experiments_id)),
+                    np.array(cascaded_pred.mean(0)), delimiter=',')
+            np.savetxt(os.path.join(params.model_dir, 'e{}_pred_unnormalized.csv'.format(params.experiments_id)),
+                    np.array(evaluate_dataset.inverse_normalize(cascaded_pred.mean(0))), delimiter=',')
+            np.savetxt(os.path.join(params.model_dir, 'e{}_target.csv'.format(params.experiments_id)),
+                    np.array(target), delimiter=',')
+            np.savetxt(os.path.join(params.model_dir, 'e{}_target_unnormalized.csv'.format(params.experiments_id)),
+                    np.array(evaluate_dataset.inverse_normalize(target)), delimiter=',')
+            
             # inverse normalization
             cascaded_pred_std = evaluate_dataset.inverse_normalize(cascaded_pred).std(0)
             cascaded_pred_mean, target = map(evaluate_dataset.inverse_normalize, 
@@ -273,10 +280,14 @@ def train_and_evaluate(dataset, optimizer, loss_fn, params):
         # save losses
         LOSSES_DF = pd.DataFrame.from_dict(LOSSES)
         LOSSES_DF.to_csv(os.path.join(params.model_dir, 'losses.csv'))
-        util.save_list(os.path.join(params.model_dir, 'evaluate_losses.csv'), TEST_LOSSES)
+        TEST_LOSSES_DF = pd.DataFrame.from_dict(TEST_LOSSES)
+        TEST_LOSSES_DF['mean'] = TEST_LOSSES_DF.mean(1)
+        TEST_LOSSES_DF.to_csv(os.path.join(params.model_dir, 'evalute_losses.csv'))
         
 
 if __name__ == '__main__':
+    
+    os.chdir('E:\\CYQ\zj_well-log-cascaded')
     
     # Load the parameters from json file
     args = parser.parse_args()
@@ -323,9 +334,10 @@ if __name__ == '__main__':
     # fetch the loss function
     loss_fn = torch.nn.MSELoss()
 
-    # Train the and evaluate the model
-    train_and_evaluate(dataset, optimizer, loss_fn, params)
-
-    # uncomment to evaluate the model
-    # CASCADING_MODEL = torch.load(os.path.join(params.model_dir, 'epoch_{}.pth.tar'.format(params.num_epochs-1)))
-    # evaluate(CASCADING_MODEL, loss_fn, dataset, params, drawing_result=True)
+    if not args.evaluate:
+        # Train the and evaluate the model
+        train_and_evaluate(dataset, optimizer, loss_fn, params)
+    else:
+        # evaluate the model
+        CASCADING_MODEL = torch.load(os.path.join(params.model_dir, 'epoch_{}.pth.tar'.format(params.num_epochs-1)))
+        evaluate(CASCADING_MODEL, loss_fn, dataset, params, drawing_result=True)
