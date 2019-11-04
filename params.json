@@ -1,6 +1,6 @@
 {
-    "experiments_id":5,
-    "TEST_ID": [4],
+    "experiments_id":1005,
+    "TEST_ID": [5],
     "random_seed": 666666,
 
     "hid_dim": 30,
@@ -9,7 +9,7 @@
     "batch_size": 64,
     "ERROR_PER": 0.02,
 
-    "num_epochs": 1,
+    "num_epochs": 3,
     "ensemble_size": 100,
     "GAMMA": 10,
     "T": 1,    

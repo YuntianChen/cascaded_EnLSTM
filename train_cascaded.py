@@ -323,6 +323,7 @@ if __name__ == '__main__':
     util.set_logger(os.path.join(params.model_dir, 'train.log'))
 
     # create the input data
+    logging.info("Experiment {}".format(params.experiments_id))
     logging.info("Loading the datasets...")
     
     # fetch dataloaders

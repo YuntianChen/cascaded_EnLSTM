@@ -17,7 +17,7 @@ COLUMNS = ['DEPTH', 'GGRM', 'GMPO', 'GMTH', 'GMUR', 'MSPD',  'R20F', 'R85F', 'VP
 
 COLUMNS_TARGET = ['E_HORZ', 'E_VERT','COHESION', 'UCS', 'DEN', 'ST', 'BRITTLE_HORZ', 'BRITTLE_VERT', 'PR_HORZ', 'PR_VERT', 'NPRL', 'TOC']
 
-TRAIN_LEN = 150
+TRAIN_LEN = 130
 
 file_prefix = 'e:/CYQ/zj_well-log-cascaded/data/A{}.csv'
 
@@ -35,7 +35,7 @@ def make_dataset(data, window_size):
     i = 0
     while i + window_size - 1 < len(data):
         yield data[i:i+window_size]
-        i += 30 # set windows step here
+        i += 40 # set windows step here
 
 
 def normalize(x):
