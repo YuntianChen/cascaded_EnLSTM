@@ -289,11 +289,11 @@ def train_and_evaluate(dataset, optimizer, loss_fn, params):
 
 if __name__ == '__main__':
     
-    os.chdir('E:\\CYQ\zj_well-log-cascaded')
+    # os.chdir('E:\\CYQ\zj_well-log-cascaded')
     
     # Load the parameters from json file
     args = parser.parse_args()
-    json_path = 'e:/CYQ/zj_well-log-cascaded/params.json'
+    json_path = 'params.json'
     assert os.path.isfile(json_path), "No json configuration file found at {}".format(json_path)
     params = util.Params(json_path)
 
