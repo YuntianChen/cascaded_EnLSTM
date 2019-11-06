@@ -82,7 +82,7 @@ class WEIGHT_CODER(object):
         new_state_dict = OrderedDict()
         weights_pointer = 0
         for layer in self.layers:
-            count = self._count[layer]
+            count = int(self._count[layer])
             new_weight = weights[weights_pointer: weights_pointer+count]
             new_weight = new_weight.reshape(self.size[layer])
             weights_pointer += count
