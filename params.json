@@ -1,5 +1,5 @@
 {
-    "experiments_id":1005,
+    "experiments_id":1006,
     "TEST_ID": [5],
     "random_seed": 666666,
 
@@ -9,7 +9,7 @@
     "batch_size": 64,
     "ERROR_PER": 0.02,
 
-    "num_epochs": 3,
+    "num_epochs": 1,
     "ensemble_size": 100,
     "GAMMA": 10,
     "T": 1,    

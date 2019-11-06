@@ -19,7 +19,7 @@ COLUMNS_TARGET = ['E_HORZ', 'E_VERT','COHESION', 'UCS', 'DEN', 'ST', 'BRITTLE_HO
 
 TRAIN_LEN = 130
 
-file_prefix = 'e:/CYQ/zj_well-log-cascaded/data/A{}.csv'
+file_prefix = 'data/A{}.csv'
 
 INDIVIDUAL_NORMALIZATION = True
 

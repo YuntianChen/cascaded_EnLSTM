@@ -129,7 +129,7 @@ class ENN_backward(object):
                     lambda_his.update(0.005)
                 else:
                     lambda_his.update(lambda_his.get_latest() / self.GAMMA)
-        return self.enn_net, loss.get_latest()
+        return loss.get_latest()
 
     def save_weights(self, filename):
         with open(filename, 'wb') as f:

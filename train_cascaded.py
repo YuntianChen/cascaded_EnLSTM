@@ -198,7 +198,7 @@ def train_and_evaluate(dataset, optimizer, loss_fn, params):
 
             # define ENN model
             if epoch == 0:
-                model = ENN_backward(net, ensemble_size=params.ensemble_size)
+                model = ENN_forward(net, ensemble_size=params.ensemble_size)
             else:
                 model = CASCADING_MODEL[model_name]
 
