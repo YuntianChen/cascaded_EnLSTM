@@ -1,0 +1,56 @@
+
+
+
+====================================================================
+T = 1
+每个batch进来计算lamuda0
+1 batch
+	lamuda0
+	case1: if loss mean reduce std reduce
+		步长增加，lamuda / 10
+	case2: if loss mean reduce std increase
+		步长不变
+	case3: if loss increase
+		拒绝更新，步长减小，lamuda *10，在上一个接受步的系数上重新计算（系数继承自上一个接受步，对比用的loss继承自上一步）
+		连续拒绝10次后，放弃更新，lamuda还原成lamuda0，相当于此batch不存在	
+2 batch
+	lamuda0
+	若上一个batch最终mean std都减小（case1结束上一个batch）
+		lamuda0	/ 10
+	若上一个batch以case2结束
+		lamuda0
+	若上一个batch以case3结束
+		lamuda0*10
+	后续同上一个batch
+
+
+T > 1
+每个batch进来计算lamuda0
+1 batch
+	lamuda0
+	case1: if loss mean reduce std reduce
+		步长增加，lamuda /10
+	case2: if loss mean reduce std increase
+		步长不变
+	case3: if loss increase
+		拒绝更新，步长减小，lamuda *10，在上一个接受步的系数上重新计算（系数继承自上一个接受步，对比用的loss继承自上一步）
+		连续拒绝10次后，放弃更新，lamuda还原成lamuda0，相当于此batch不存在
+	最终结束为lamuda-T1
+	
+2 batch
+	lamuda0
+	若上一个batch最终mean std都减小（case1结束上一个batch）
+		lamuda0	/ 10 (注意并没有继承自lamuda-T1）关键点在于只从上一个batch继承lambda更新方向信息，但是初始lamuda是来自于当前batch
+	若上一个batch以case2结束
+		lamuda0
+	若上一个batch以case3结束
+		lamuda0*10
+	后续同上一个batch
+
+
+
+
+
+
+
+
