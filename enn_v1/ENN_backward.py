@@ -129,6 +129,7 @@ class ENN_backward(object):
                     lambda_his.update(0.005)
                 else:
                     lambda_his.update(lambda_his.get_latest() / self.GAMMA)
+        return self.enn_net, loss.get_latest()
 
     def save_weights(self, filename):
         with open(filename, 'wb') as f:
@@ -160,6 +161,9 @@ class ENN_backward(object):
         result = torch.std((tmp ** 2).sum(0) / len(tmp))
         return result # result: torch.tensor
 
+    @property
+    def model(self):
+        return self.enn_net
  
 class HistoryMeter(object):
     """

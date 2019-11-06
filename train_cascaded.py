@@ -16,6 +16,8 @@ from tqdm import tqdm
 
 import util
 from enn import enn, enrml, lamuda
+from enn_v1.ENN_backward import ENN_backward
+from enn_v1.ENN_forward import ENN_forward
 from net import netLSTM_withbn
 from data import WelllogDataset, COLUMNS_TARGET, WELL
 from util import Record, save_var, get_file_list, list_to_csv, shrink, save_txt
@@ -54,74 +56,6 @@ LOSSES = OrderedDict((model_name, []) for model_name in CASCADING)
 TEST_LOSSES = OrderedDict((feature, []) for feature in COLUMNS_TARGET)
 
 
-def enn_optimizer(model, input_, target, loss_fn, params, cascading=''):
-    net_enn = model
-    dstb_y = lamuda.Lamuda(target, params.ensemble_size, params.ERROR_PER)
-    train_losses = Record()
-    losses = Record()
-    lamuda_history = Record()
-    std_history = Record()
-    pred_history = Record()
-
-    initial_parameters = net_enn.initial_parameters
-    initial_pred = net_enn.output(input_)
-    train_losses.update(loss_fn(initial_pred.mean(0), target).tolist())
-    losses.update(loss_fn(initial_pred.mean(0), target).tolist())
-    std_history.update(dstb_y.std(initial_pred))
-    pred_history.update(initial_pred)
-    lamuda_history.update(dstb_y.lamuda(initial_pred))
-
-    for _ in range(params.T):
-        torch.cuda.empty_cache()
-        parameters = net_enn.get_parameter()
-        dstb_y.update()
-        # time_ = time.strftime('%Y%m%d_%H_%M_%S')
-        delta = enrml.EnRML(pred_history.get_latest(mean=False), parameters, initial_parameters,
-                            lamuda_history.get_latest(mean=False), dstb_y.dstb, params.ERROR_PER)
-        params_raw = net_enn.update_parameter(delta)
-        torch.cuda.empty_cache()
-        pred = net_enn.output(input_)
-        loss_new = loss_fn(pred.mean(0), target).tolist()
-        bigger = train_losses.check(loss_new)
-        record_while = 0
-        while bigger:
-            record_while += 1
-            lamuda_history.update(lamuda_history.get_latest(mean=False) * params.GAMMA)
-            if lamuda_history.get_latest(mean=False) > params.GAMMA ** 10:
-                lamuda_history.update(lamuda_history.data[0])
-                # print('abandon current iteration')
-                logging.info("Abandon current batch")
-                net_enn.set_parameter(parameters)
-                loss_new = train_losses.get_latest()
-                dstb_y.update()
-                params_raw = parameters
-                break
-            dstb_y.update()
-            net_enn.set_parameter(parameters)
-            delta = enrml.EnRML(pred_history.get_latest(mean=False), parameters, initial_parameters,
-                                lamuda_history.get_latest(mean=False), dstb_y.dstb, params.ERROR_PER)
-            params_raw = net_enn.update_parameter(delta)
-            torch.cuda.empty_cache()
-            pred = net_enn.output(input_)
-            loss_new = loss_fn(pred.mean(0), target).tolist()
-            # print('update losses, new loss:{}'.format(loss_new))
-            bigger = train_losses.check(loss_new)
-        train_losses.update(loss_new)
-        # save_var(params_raw, '{}/{}_{}_params'.format(PATH, time_, cascading))
-        # print("iteration:{} \t current train losses:{}".format(j, train_losses.get_latest(mean=True)))
-        # save_txt('{}/loss_{}.txt'.format(PATH, cascading), time.strftime('%Y%m%d_%H_%M_%S')+','+str(train_losses.get_latest(mean=True))+',\n')
-        pred_history.update(pred)
-        std_history.update(dstb_y.std(pred))
-        if std_history.bigger():
-            lamuda_history.update(lamuda_history.get_latest(mean=False))
-        else:
-            lamuda_tmp = lamuda_history.get_latest(mean=False) / params.GAMMA
-            if lamuda_tmp < 0.005:
-                lamuda_tmp = 0.005
-            lamuda_history.update(lamuda_tmp)
-    return net_enn, params_raw, train_losses.get_latest(mean=True), pred_history.get_latest(mean=False)
-
-
 def evaluate(cascaded_model, loss_fn, evaluate_dataset, params, drawing_result=False):
     
     # Evaluate for one well log validation set
@@ -146,7 +80,7 @@ def evaluate(cascaded_model, loss_fn, evaluate_dataset, params, drawing_result=F
             model = cascaded_model[model_name]
                  
             # make prediction
-            pred = model.output(input_.reshape(1, len(input_), -1))
+            pred = model(input_.reshape(1, len(input_), -1))
             input_ = torch.cat([input_, pred.mean(0)], 1)
             cascaded_pred.append(pred)
             
@@ -189,6 +123,7 @@ def train(model, optimizer, loss_fn, dataloader, params, name):
     
     # runing average object for loss
     loss_avg = util.RunningAverage()
+    optimizer = ENN_backward(model, params.ERROR_PER, params.T, loss_fn)
     
     # use tqdm for pregress bar
     with tqdm(total=len(dataloader)) as t:
@@ -206,7 +141,7 @@ def train(model, optimizer, loss_fn, dataloader, params, name):
                 target = target.cuda()
 
             # compute the model output and loss
-            model, weights, loss, pred = optimizer(model, in_feature, target, loss_fn, params, cascading=name)
+            loss = optimizer.fit(in_feature, target)
 
             # save model weights
             # torch.save(weights, os.path.join(params.model_dir, 'weights'))
@@ -218,7 +153,7 @@ def train(model, optimizer, loss_fn, dataloader, params, name):
             t.set_postfix(loss='{:05.3f} avg: {:05.3f}'.format(np.average(loss), loss_avg()))
             t.update()
     
-    return model
+    return optimizer.model
 
 
 def train_and_evaluate(dataset, optimizer, loss_fn, params):
@@ -263,7 +198,7 @@ def train_and_evaluate(dataset, optimizer, loss_fn, params):
 
             # define ENN model
             if epoch == 0:
-                model = enn.ENN(net, params.ensemble_size)
+                model = ENN_backward(net, ensemble_size=params.ensemble_size)
             else:
                 model = CASCADING_MODEL[model_name]
 
@@ -332,7 +267,7 @@ if __name__ == '__main__':
     logging.info("- done.")
     
     # define optimizer
-    optimizer = enn_optimizer
+    optimizer = ENN_backward
     
     # fetch the loss function
     loss_fn = torch.nn.MSELoss()
