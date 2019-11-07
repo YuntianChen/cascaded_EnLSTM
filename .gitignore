@@ -120,6 +120,7 @@ venv.bak/
 .mypy_cache/
 .dmypy.json
 dmypy.json
+params.json
 
 # Pyre type checker
 .pyre/
@@ -127,7 +128,6 @@ dmypy.json
 # Experiments
 Experiments/
 result/
-params.json
 
 # VS CODE
 .vscode

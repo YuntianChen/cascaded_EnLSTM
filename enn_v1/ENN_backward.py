@@ -104,9 +104,9 @@ class ENN_backward(object):
                 lambda_his.update(lambda_his.get_latest() * self.GAMMA)
                 # check if lambda exceed the limit
                 if lambda_his.get_latest() > self.GAMMA ** 10:
-                    lambda_his.append(lambda_his.get_initial())
+                    lambda_his.update(lambda_his.get_initial())
                     print('abandon current iteration')
-                    self.net_enn.load_weights(parameters_r)
+                    self.enn_net.load_weights(parameters_r)
                     self.parameters = parameters_r
                     break
                 # reset parameters in current round with parameters_r
